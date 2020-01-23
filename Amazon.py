@@ -21,18 +21,17 @@ from wordcloud import WordCloud
 from PIL import Image
 from textblob import TextBlob
 from sklearn.ensemble import RandomForestClassifier
-# wczytanie danych, usunięcie niepotrzebnych kolumn
+#wczytanie
 dane = pd.read_csv("allreviews.csv")
 reviews = dane
 reviews = reviews.drop(["ReviewTitle"], axis=1)
 reviews = reviews.drop(["Product"], axis=1)
-# Usuwanie duplikatów, oprócz pierwszego wystąpienia.
 reviews = reviews.drop_duplicates(keep='first')
 #Sentiment Analysis
 reviews["Polarity"] = reviews["ReviewBody"].apply(lambda x: TextBlob(x).sentiment[0])
-reviews["PolarityBinary"] = np.where(reviews["Polarity"]>0.2,1,(np.where(reviews["Polarity"]<-0.2,0,100)))
+reviews["PolarityB"] = np.where(reviews["Polarity"]>0.2,1,(np.where(reviews["Polarity"]<-0.2,0,100)))
 # przedział neutralnych -0.2 do 0.2, bo to 1/5, bo 5 gwiazdek
-pd.crosstab(index = reviews["PolarityBinary"], columns="Total count")
+pd.crosstab(index = reviews["PolarityB"], columns="Total count")
 #Positive 58%
 #Negative 7%
 #Neutral  35%
@@ -42,7 +41,7 @@ pd.crosstab(index = reviews["Satisfied"], columns="Total count")
 #Positive 64%
 #Negative 25%
 #Neutral 11%
-reviews["Difference"]= reviews["Satisfied"]-reviews["PolarityBinary"]
+reviews["Difference"]= reviews["Satisfied"]-reviews["PolarityB"]
 pd.crosstab(index = reviews["Difference"], columns="Total count").plot(kind='pie', subplots=True, autopct='%1.1f%%')
 #  1  False positive + -                 <1%
 # -1  False negative - +                 4%
@@ -59,9 +58,8 @@ FalsePos = reviews
 FalsePos = FalsePos[FalsePos["Difference"]==1]
 FalsePos = FalsePos[FalsePos["Polarity"]<-0.6]
 reviews = pd.concat([reviews,FalseNeg,FalsePos]).drop_duplicates(keep=False)
-#usuwam duplikaty
+#usuwam neutralne
 reviews = reviews[reviews["ReviewStar"]!=3]
-#usuwam neutralne zostaje 11643
 # Text pre-processing
 #change to lowercase
 reviews["ReviewBody"] = reviews["ReviewBody"].str.lower()
@@ -99,7 +97,7 @@ reviews["ReviewBody"] = reviews["ReviewBody"].apply(lambda x: ' '.join([word for
 #stemming 
 ps = PorterStemmer()
 reviews["ReviewBody"] = reviews["ReviewBody"].apply(lambda x: ' '.join([ps.stem(word) for word in x.split()]))
-#class proportion - 72% i 28% OK WYNIK
+#class proportion - 72% i 28% 
 pd.crosstab(index = reviews["Satisfied"], columns="Total count")
 ######## WORDLIST ##########
 wordlist = pd.Series(np.concatenate([x.split() for x in reviews.ReviewBody])).value_counts() 
@@ -159,9 +157,9 @@ wordlistextneg50.plot.barh(color="black").invert_yaxis()
 plt.show()
 # Subjectivity
 reviews["Subjectivity"] = reviews["ReviewBody"].apply(lambda x: TextBlob(x).sentiment[1])
-reviews["SubjectivityBinary"] = np.where(reviews["Subjectivity"]>0.666,1,(np.where(reviews["Subjectivity"]<0.333,0,100)))
+reviews["SubjectivityB"] = np.where(reviews["Subjectivity"]>0.666,1,(np.where(reviews["Subjectivity"]<0.333,0,100)))
 # przedział 0.333-0.666 neutralne - trudno powiedzieć
-pd.crosstab(index = reviews["SubjectivityBinary"], columns="Total count").plot(kind='pie', subplots=True, labels=('Objektywne','Subjektywne','Trudno powiedzieć'),autopct='%1.1f%%')
+pd.crosstab(index = reviews["SubjectivityB"], columns="Total count").plot(kind='pie', subplots=True, labels=('Objektywne','Subjektywne','Trudno powiedzieć'),autopct='%1.1f%%')
 # Pozytywne i Subjektywne 9%
 reviews[(reviews.Satisfied==1) & (reviews.SubjectivityBinary==1)].count()
 # Negatywne i Subjektywne 4%
@@ -179,15 +177,13 @@ vect.get_feature_names()[::400] # every 400th element
 print(vect.vocabulary_)
 X_train_vectorized = vect.transform(X_train)
 print(X_train_vectorized)
-print('Shape of matrix', X_train_vectorized.shape) 
-# there are A docs with B words in vocabulary
+print('Shape', X_train_vectorized.shape) 
 print(type(X_train_vectorized))
 print(X_train_vectorized.toarray()[2])
 #logistic regression
-# solver - For small datasets, ‘liblinear’ is a good choice
 model = LogisticRegression(multi_class='ovr',n_jobs=1,solver='liblinear')
 model.fit(X_train_vectorized,y_train)
-# testing the model
+# testing
 predictions = model.predict(vect.transform(X_test))
 roc_auc_score(y_test, predictions)
 print('AUC: ',roc_auc_score(y_test, predictions))
@@ -195,26 +191,17 @@ false_positive_rate, true_positive_rate, thresholds = roc_curve(y_test, predicti
 roc_auc = auc(false_positive_rate, true_positive_rate)
 #plotting
 plt.title("Testing model")
-plt.plot(false_positive_rate,true_positive_rate,'g',label="AUC = %0.2f"% roc_auc)
+plt.plot(false_positive_rate,true_positive_rate,'r',label="AUC = %0.2f"% roc_auc)
 plt.legend(loc='lower right')
 plt.plot([0,1],[0,1],'b--')
 plt.ylabel('True Positive Rate')
 plt.xlabel('False Positive Rate')
 ################################################ Model LG with Tf-Idf Vectorizer
-# TF = (Number of times term T appears in the particular row) / (number of terms in that row)
-# 
 vectTf = TfidfVectorizer(min_df=10).fit(X_train)
 print(vectTf.vocabulary_) 
-# in vocabulary each word has an id number assigned
-# Bag-of-Words Model
-# we are only concerned with encoding schemes that represent what words 
-# are present (count) or the degree to which they are present (frequency) 
-# in encoded documents without any information about order
 print(vectTf.idf_)
-# idf - the lower the score the more frequently observed the word
 X_train_vectorizedTfidf = vectTf.transform(X_train)
 print(X_train_vectorizedTfidf)
-# nr dokumentu, nr wyrazu, wartosć scoringu
 model = LogisticRegression(multi_class='ovr',n_jobs=1,solver="liblinear")
 model.fit(X_train_vectorizedTfidf,y_train)
 predictionsTfidf = model.predict(vectTf.transform(X_test))
@@ -222,15 +209,13 @@ print("AUC: ", roc_auc_score(y_test,predictionsTfidf))
 ####################################### Model Random Forest with CountVectorizer
 model = RandomForestClassifier(n_estimators=1000, random_state=0) 
 model.fit(X_train_vectorized,y_train)
-#print(model.feature_importances_)
 predictionsRF = model.predict(vect.transform(X_test))
 print("AUC: ", roc_auc_score(y_test,predictionsRF))
-#
 false_positive_rate, true_positive_rate, thresholds = roc_curve(y_test, predictionsRF)
 roc_auc = auc(false_positive_rate, true_positive_rate)
 #plotting
 plt.title("Testing model")
-plt.plot(false_positive_rate,true_positive_rate,'g',label="AUC = %0.2f"% roc_auc)
+plt.plot(false_positive_rate,true_positive_rate,'r',label="AUC = %0.2f"% roc_auc)
 plt.legend(loc='lower right')
 plt.plot([0,1],[0,1],'b--')
 plt.ylabel('True Positive Rate')
