@@ -15,12 +15,14 @@ from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_curve, roc_auc_score, auc
+from sklearn.metrics import roc_curve, roc_auc_score,
+from sklearn.metrics import classification_report, confusion_matrix
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 from PIL import Image
 from textblob import TextBlob
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
 #wczytanie
 dane = pd.read_csv("allreviews.csv")
 reviews = dane
@@ -92,27 +94,30 @@ reviews["ReviewBody"] = reviews["ReviewBody"].apply(lambda x: ' '.join([word for
 stopwords.extend(("also","go","went","get","getting", "got","u"))
 reviews["ReviewBody"] = reviews["ReviewBody"].apply(lambda x: ' '.join([word for word in x.split() if word not in (stopwords)]))
 #other words -> Context specific
-otherwords = ["amazon","jbl", "sennheiser", "boat", "bought","buy","purchase","purchasing"]
+otherwords = ["amazon","jbl", "sennheiser", "boat", "bought","buy","purchase","purchasing", "product","earphone","earphones","ear","headphone","headphones","music","bluetooth"]
 reviews["ReviewBody"] = reviews["ReviewBody"].apply(lambda x: ' '.join([word for word in x.split() if word not in (otherwords)]))
 #stemming 
 ps = PorterStemmer()
 reviews["ReviewBody"] = reviews["ReviewBody"].apply(lambda x: ' '.join([ps.stem(word) for word in x.split()]))
 #class proportion - 72% i 28% 
 pd.crosstab(index = reviews["Satisfied"], columns="Total count")
+example = ["phones", "satisfied", "incredibly"]
+for word in example:
+    print(ps.stem(word))
 ######## WORDLIST ##########
 wordlist = pd.Series(np.concatenate([x.split() for x in reviews.ReviewBody])).value_counts() 
-wordlist50 = wordlist.head(50)
-wordlist50.plot.barh().invert_yaxis()
-plt.show()
+wordlist25 = wordlist.head(25)
+wordlist25.plot.barh(width=0.5,fontsize=20).invert_yaxis()
+plt.savefig("C:/Users/Natalia/Documents/Python/Amazon/plt1.jpg")
 ########## WORDCLOUD #######
 fulltext = " ".join(r for r in reviews.ReviewBody)
 wordcloud = WordCloud(background_color="white").generate(fulltext)
 plt.imshow(wordcloud, interpolation='bilinear')
 plt.axis("off")
-plt.show()
-############ WORDCLOUD SŁUCHAWKI #######
-headphones_mask = np.array(Image.open("C:/Users/Natalia/Documents/Python/Amazon/headphones.png"))
-wordcloud = WordCloud(background_color="white", max_words=250, mask=headphones_mask,contour_width=2,contour_color="white", collocations=False).generate(fulltext)
+plt.savefig("C:/Users/Natalia/Documents/Python/Amazon/wc1.jpg")
+############ WORDCLOUD mask #######
+chmura_mask = np.array(Image.open("C:/Users/Natalia/Documents/Python/Amazon/chmura.png"))
+wordcloud = WordCloud(background_color="white", max_words=250, mask=chmura_mask,contour_width=2,contour_color="navy", collocations=True).generate(fulltext)
 wordcloud.to_file("C:/Users/Natalia/Documents/Python/Amazon/toheadphones.png")
 plt.figure(figsize=[10,10])
 plt.imshow(wordcloud, interpolation='bilinear')
@@ -123,81 +128,89 @@ revpositive = reviews[reviews.Satisfied == 1]
 revnegative = reviews[reviews.Satisfied == 0]
 # POSITIVE WORDLIST
 wordlistpos = pd.Series(np.concatenate([x.split() for x in revpositive.ReviewBody])).value_counts() 
-wordlistpos50 = wordlistpos.head(50)
-wordlistpos50.plot.barh(color="green").invert_yaxis()
-plt.show()
+wordlistpos25 = wordlistpos.head(25)
+wordlistpos25.plot.barh(color="green", width=0.5,fontsize=20).invert_yaxis()
+plt.savefig("C:/Users/Natalia/Documents/Python/Amazon/pltpos.jpg")
 #POSITIVE WORDCLOUD
 fulltextpos = " ".join(r for r in revpositive.ReviewBody)
-happy_mask = np.array(Image.open("C:/Users/Natalia/Documents/Python/Amazon/happy.png"))
-wordcloud = WordCloud(background_color="white", max_words=250, mask=happy_mask,contour_width=2,contour_color="white", collocations=True).generate(fulltextpos)
+happy_mask = np.array(Image.open("C:/Users/Natalia/Documents/Python/Amazon/jeden.png"))
+wordcloud = WordCloud(background_color="white", max_words=250, mask=happy_mask,contour_width=2,contour_color="green", collocations=True).generate(fulltextpos)
 wordcloud.to_file("C:/Users/Natalia/Documents/Python/Amazon/tohappy.png")
 plt.figure(figsize=[10,10])
 plt.imshow(wordcloud, interpolation='bilinear')
 plt.axis("off")
-plt.show()
 #NEGATIVE WORDLIST
 wordlistneg = pd.Series(np.concatenate([x.split() for x in revnegative.ReviewBody])).value_counts() 
-wordlistneg50 = wordlistneg.head(50)
-wordlistneg50.plot.barh(color="red", fontsize=10).invert_yaxis()
-plt.show()
+wordlistneg25 = wordlistneg.head(25)
+wordlistneg25.plot.barh(color="red",width=0.5, fontsize=20).invert_yaxis()
+plt.savefig("C:/Users/Natalia/Documents/Python/Amazon/pltneg.jpg")
 #NEGATIVE WORDCLOUD
 fulltextneg = " ".join(r for r in revnegative.ReviewBody)
-sad_mask = np.array(Image.open("C:/Users/Natalia/Documents/Python/Amazon/sad.png"))
-wordcloud = WordCloud(background_color="white", max_words=250, mask=sad_mask,contour_width=2,contour_color="white", collocations=True).generate(fulltextneg)
+sad_mask = np.array(Image.open("C:/Users/Natalia/Documents/Python/Amazon/dwa.png"))
+wordcloud = WordCloud(background_color="white", max_words=250, mask=sad_mask,contour_width=2,contour_color="red", collocations=True).generate(fulltextneg)
 wordcloud.to_file("C:/Users/Natalia/Documents/Python/Amazon/tosad.png")
 plt.figure(figsize=[10,10])
 plt.imshow(wordcloud, interpolation='bilinear')
 plt.axis("off")
-plt.show()
 #WYJĄTKOWO NIEZADOWOLENI KLIENCI, RATE = 1
 revextnegative = reviews[reviews.ReviewStar == 1]
 wordlistextneg = pd.Series(np.concatenate([x.split() for x in revextnegative.ReviewBody])).value_counts() 
-wordlistextneg50 = wordlistextneg.head(50)
-wordlistextneg50.plot.barh(color="black").invert_yaxis()
+wordlistextneg25 = wordlistextneg.head(25)
+wordlistextneg25.plot.barh(color="black",width=0.5,fontsize=20).invert_yaxis()
 plt.show()
 # Subjectivity
 reviews["Subjectivity"] = reviews["ReviewBody"].apply(lambda x: TextBlob(x).sentiment[1])
 reviews["SubjectivityB"] = np.where(reviews["Subjectivity"]>0.666,1,(np.where(reviews["Subjectivity"]<0.333,0,100)))
 # przedział 0.333-0.666 neutralne - trudno powiedzieć
+pd.crosstab(index = reviews["SubjectivityB"], columns="Total count")
 pd.crosstab(index = reviews["SubjectivityB"], columns="Total count").plot(kind='pie', subplots=True, labels=('Objektywne','Subjektywne','Trudno powiedzieć'),autopct='%1.1f%%')
+#subjektywne 1493; 71% poz, 29% neg
+#obiektywne 2873 58% poz, 42% neg
+#pozytywne 8362 - SUB 13%, OB 20%
+#negatywne 3281 - SUB 13%, OB 37%
 # Pozytywne i Subjektywne 9%
-reviews[(reviews.Satisfied==1) & (reviews.SubjectivityBinary==1)].count()
+reviews[(reviews.Satisfied==1) & (reviews.SubjectivityB==1)].count()
 # Negatywne i Subjektywne 4%
-reviews[(reviews.Satisfied==0) & (reviews.SubjectivityBinary==1)].count()
+reviews[(reviews.Satisfied==0) & (reviews.SubjectivityB==1)].count()
 # Pozytywne i Obiektywne  14%
-reviews[(reviews.Satisfied==1) & (reviews.SubjectivityBinary==0)].count()
+reviews[(reviews.Satisfied==1) & (reviews.SubjectivityB==0)].count()
 # Negatywne i Obiektywne  10%
-reviews[(reviews.Satisfied==0) & (reviews.SubjectivityBinary==0)].count()
-#Subjektywne - pozytwyne stanowią około 2/3, Obiektywne - pozytywne nieco ponad połowa
+reviews[(reviews.Satisfied==0) & (reviews.SubjectivityB==0)].count()
 # podział na train i test - random split
 X_train, X_test, y_train, y_test = train_test_split(reviews['ReviewBody'], reviews['Satisfied'], random_state=0)
 #Model LG with CountVectorizer
 vect = CountVectorizer().fit(X_train)
-vect.get_feature_names()[::400] # every 400th element
+vect.get_feature_names()[::500] 
 print(vect.vocabulary_)
 X_train_vectorized = vect.transform(X_train)
-print(X_train_vectorized)
+print(X_train_vectorized[8725])
 print('Shape', X_train_vectorized.shape) 
 print(type(X_train_vectorized))
-print(X_train_vectorized.toarray()[2])
+print(X_train_vectorized.toarray()[600])
 #logistic regression
 model = LogisticRegression(multi_class='ovr',n_jobs=1,solver='liblinear')
 model.fit(X_train_vectorized,y_train)
 # testing
 predictions = model.predict(vect.transform(X_test))
-roc_auc_score(y_test, predictions)
+print(confusion_matrix(y_test,predictions))
+print(classification_report(y_test,predictions))
+predictions_zero = [0 for _ in range(len(y_test))]
+auc_lr = roc_auc_score(y_test, predictions)
+auc_zero =roc_auc_score(y_test,predictions_zero)
 print('AUC: ',roc_auc_score(y_test, predictions))
 false_positive_rate, true_positive_rate, thresholds = roc_curve(y_test, predictions)
-roc_auc = auc(false_positive_rate, true_positive_rate)
+false_positive_rate_zero, true_positive_rate_zero, thresholds = roc_curve(y_test, predictions_zero)
+#roc_auc = auc(false_positive_rate, true_positive_rate)
 #plotting
-plt.title("Testing model")
-plt.plot(false_positive_rate,true_positive_rate,'r',label="AUC = %0.2f"% roc_auc)
+plt.title("Model")
+plt.plot(false_positive_rate,true_positive_rate,'r',label="AUC = %0.3f"% auc_lr)
 plt.legend(loc='lower right')
-plt.plot([0,1],[0,1],'b--')
-plt.ylabel('True Positive Rate')
-plt.xlabel('False Positive Rate')
+plt.plot(false_positive_rate_zero,true_positive_rate_zero,'b--',label="AUC = %0.2f"% auc_zero)
+plt.ylabel('"True Positive"', fontsize=12)
+plt.xlabel('"False Positive"', fontsize=12)
+plt.savefig("C:/Users/Natalia/Documents/Python/Amazon/plot1.jpg")
 ################################################ Model LG with Tf-Idf Vectorizer
-vectTf = TfidfVectorizer(min_df=10).fit(X_train)
+vectTf = TfidfVectorizer(smooth_idf=False).fit(X_train)
 print(vectTf.vocabulary_) 
 print(vectTf.idf_)
 X_train_vectorizedTfidf = vectTf.transform(X_train)
@@ -205,18 +218,51 @@ print(X_train_vectorizedTfidf)
 model = LogisticRegression(multi_class='ovr',n_jobs=1,solver="liblinear")
 model.fit(X_train_vectorizedTfidf,y_train)
 predictionsTfidf = model.predict(vectTf.transform(X_test))
+print(confusion_matrix(y_test,predictionsTfidf))
+print(classification_report(y_test,predictionsTfidf))
 print("AUC: ", roc_auc_score(y_test,predictionsTfidf))
+auc_lr_tfidf = roc_auc_score(y_test, predictionsTfidf)
+false_positive_rate_tfidf, true_positive_rate_tfidf, thresholds = roc_curve(y_test, predictionsTfidf)
+false_positive_rate_zero, true_positive_rate_zero, thresholds = roc_curve(y_test, predictions_zero)
+plt.title("Model")
+plt.plot(false_positive_rate_tfidf,true_positive_rate_tfidf,'r',label="AUC = %0.3f"% auc_lr_tfidf)
+plt.legend(loc='lower right')
+plt.plot(false_positive_rate_zero,true_positive_rate_zero,'b--',label="AUC = %0.3f"% auc_zero)
+plt.ylabel('"True Positive"', fontsize=12)
+plt.xlabel('"False Positive"', fontsize=12)
+plt.savefig("C:/Users/Natalia/Documents/Python/Amazon/plotTfidf.jpg")
 ####################################### Model Random Forest with CountVectorizer
 model = RandomForestClassifier(n_estimators=1000, random_state=0) 
 model.fit(X_train_vectorized,y_train)
 predictionsRF = model.predict(vect.transform(X_test))
+print(confusion_matrix(y_test,predictionsRF))
+print(classification_report(y_test,predictionsRF))
 print("AUC: ", roc_auc_score(y_test,predictionsRF))
-false_positive_rate, true_positive_rate, thresholds = roc_curve(y_test, predictionsRF)
-roc_auc = auc(false_positive_rate, true_positive_rate)
+false_positive_rate_RF, true_positive_rate_RF, thresholds = roc_curve(y_test, predictionsRF)
+#roc_auc = auc(false_positive_rate, true_positive_rate)
 #plotting
-plt.title("Testing model")
-plt.plot(false_positive_rate,true_positive_rate,'r',label="AUC = %0.2f"% roc_auc)
+auc_RF = roc_auc_score(y_test, predictionsRF)
+plt.title("Model")
+plt.plot(false_positive_rate_RF,true_positive_rate_RF,'r',label="AUC = %0.3f"% auc_RF)
 plt.legend(loc='lower right')
-plt.plot([0,1],[0,1],'b--')
-plt.ylabel('True Positive Rate')
-plt.xlabel('False Positive Rate')
+plt.plot(false_positive_rate_zero,true_positive_rate_zero,'b--',label="AUC = %0.3f"% auc_zero)
+plt.ylabel('"True Positive"', fontsize=12)
+plt.xlabel('"False Positive"', fontsize=12)
+plt.savefig("C:/Users/Natalia/Documents/Python/Amazon/plotRF.jpg")
+#################################### MODEL SVM
+model = SVC(kernel='linear')
+model.fit(X_train_vectorized,y_train)
+predictionsSVM = model.predict(vect.transform(X_test))
+print(confusion_matrix(y_test,predictionsSVM))
+print(classification_report(y_test,predictionsSVM))
+###
+auc_SVM = roc_auc_score(y_test, predictionsSVM)
+false_positive_rate_SVM, true_positive_rate_SVM, thresholds = roc_curve(y_test, predictionsSVM)
+plt.title("Model")
+plt.plot(false_positive_rate_SVM,true_positive_rate_SVM,'r',label="AUC = %0.3f"% auc_SVM)
+plt.legend(loc='lower right')
+plt.plot(false_positive_rate_zero,true_positive_rate_zero,'b--',label="AUC = %0.3f"% auc_zero)
+plt.ylabel('"True Positive"', fontsize=12)
+plt.xlabel('"False Positive"', fontsize=12)
+plt.savefig("C:/Users/Natalia/Documents/Python/Amazon/plotSVM.jpg")
+
